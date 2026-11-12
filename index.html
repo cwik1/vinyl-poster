@@ -67,6 +67,8 @@
   .slider-val { font-size: 11px; font-family: monospace; background: #f3f4f6; padding: 2px 6px; border-radius: 4px; color: #374151; }
   input[type=range] { width: 100%; accent-color: #111; }
   .hint { font-size: 11px; color: #9ca3af; margin-top: -6px; }
+  .check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .check-row input { accent-color: #111; width: 15px; height: 15px; }
 
   /* ── Lyric Mode Toggle ───────────────────────────────────────────────────
      Two-button pill toggle (Repeat to fill / Print once only).
@@ -126,6 +128,35 @@
       <input type="text" id="names" value="COREY &amp; JESSICA"></div>
     <div class="field"><label class="section">Date</label>
       <input type="text" id="dateText" value="November 5, 1955"></div>
+
+    <!-- ── Title & Text Style ────────────────────────────────────────────
+         Title size/bold/position, an optional divider under the title +
+         artist, and font sizes for the names and date. Title position is
+         in inches (poster is 11" wide = 1000 units, so ~90.9 units/inch);
+         the title, artist and title divider move together as one block. -->
+    <hr>
+    <div class="section-title">Title &amp; Text Style</div>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Title Size</span><span class="slider-val" id="vTitleSize">52</span></div>
+      <input type="range" id="titleSize" min="24" max="90" step="1" value="52">
+    </div>
+    <label class="check-row"><input type="checkbox" id="titleBold"> Bold title</label>
+    <div class="slider-row">
+      <div class="slider-label"><span>Title Position</span><span class="slider-val" id="vTitleOffset">0″</span></div>
+      <input type="range" id="titleOffset" min="-2" max="2" step="0.05" value="0">
+    </div>
+    <div class="hint">Moves title + artist up or down, up to 2″</div>
+    <label class="check-row"><input type="checkbox" id="titleLine"> Line below title &amp; artist</label>
+
+    <div class="slider-row">
+      <div class="slider-label"><span>Names Size</span><span class="slider-val" id="vNamesSize">34</span></div>
+      <input type="range" id="namesSize" min="14" max="70" step="1" value="34">
+    </div>
+    <div class="slider-row">
+      <div class="slider-label"><span>Date Size</span><span class="slider-val" id="vDateSize">19</span></div>
+      <input type="range" id="dateSize" min="10" max="44" step="0.5" value="19">
+    </div>
 
     <!-- ── Lyrics + Repeat Mode ────────────────────────────────────────
          The textarea accepts multi-line text; newlines are normalised to
@@ -388,6 +419,12 @@ function render(){
   const armY          = num("armY");
   const discR         = num("discR");
   const lyrics        = val("lyrics");
+  const titleSize     = num("titleSize");
+  const titleBold     = document.getElementById("titleBold").checked;
+  const titleOffset   = num("titleOffset"); // inches; positive = down
+  const titleLine     = document.getElementById("titleLine").checked;
+  const namesSize     = num("namesSize");
+  const dateSize      = num("dateSize");
 
   // innerGap is used directly as the inner radius (0 = spiral reaches centre).
   // nTurns is derived from the physical gap between lines, not set directly.
@@ -406,6 +443,11 @@ function render(){
   document.getElementById("vArmY").textContent          = armY+"px";
   document.getElementById("vDiscR").textContent          = discR+"px";
   document.getElementById("turnsHint").textContent      = "→ "+nTurns+" spiral lines";
+  document.getElementById("vTitleSize").textContent     = titleSize;
+  document.getElementById("vTitleOffset").textContent   = titleOffset === 0 ? "0″"
+    : Math.abs(titleOffset).toFixed(2)+"″ "+(titleOffset > 0 ? "↓" : "↑");
+  document.getElementById("vNamesSize").textContent     = namesSize;
+  document.getElementById("vDateSize").textContent      = dateSize;
 
   // ── Build spiral path and prepare lyrics text ────────────────────────
   const { d, len } = buildSpiral(outerR, actualInnerR, nTurns);
@@ -439,7 +481,10 @@ function render(){
   // ── Compute layout positions for poster text elements ────────────────
   // Title and artist sit above the spiral ring; names and date sit below.
   const recTop=CY-outerR, recBot=CY+outerR;
-  const titleY=recTop-110, artistY=recTop-58;
+  // titleOffset (inches) shifts the title block; W units span 11 inches.
+  const titleShift = titleOffset * (W / 11);
+  const titleY=recTop-110+titleShift, artistY=recTop-58+titleShift;
+  const titleSepY=artistY+20;
   const sepY=recBot+36, namesY=recBot+92, dateY=recBot+134;
   const armH=480*armScale, armW=armH*TONEARM_ASPECT;
 
@@ -463,11 +508,12 @@ function render(){
 <circle cx="${CX}" cy="${CY}" r="${discR}" fill="#111"/>
 <circle cx="${CX}" cy="${CY}" r="9" fill="#f0ede8"/>
 ${borderEl}
-<text x="${CX}" y="${titleY}" text-anchor="middle" font-family="Palatino Linotype,Palatino,Georgia,serif" font-size="52" font-style="italic" fill="#1a1a1a">${esc(val("songTitle"))}</text>
+<text x="${CX}" y="${titleY}" text-anchor="middle" font-family="Palatino Linotype,Palatino,Georgia,serif" font-size="${titleSize}" font-style="italic" font-weight="${titleBold ? "bold" : "normal"}" fill="#1a1a1a">${esc(val("songTitle"))}</text>
 <text x="${CX}" y="${artistY}" text-anchor="middle" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="16.5" letter-spacing="3.5" fill="#333">${esc(val("artist"))}</text>
+${titleLine ? `<line x1="${CX-210}" y1="${titleSepY}" x2="${CX+210}" y2="${titleSepY}" stroke="#444" stroke-width="0.8"/>` : ''}
 <line x1="${CX-210}" y1="${sepY}" x2="${CX+210}" y2="${sepY}" stroke="#444" stroke-width="0.8"/>
-<text x="${CX}" y="${namesY}" text-anchor="middle" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="34" font-weight="bold" letter-spacing="5" fill="#111">${esc(val("names"))}</text>
-<text x="${CX}" y="${dateY}" text-anchor="middle" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="19" letter-spacing="3.5" fill="#555">${esc(val("dateText"))}</text>`;
+<text x="${CX}" y="${namesY}" text-anchor="middle" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="${namesSize}" font-weight="bold" letter-spacing="5" fill="#111">${esc(val("names"))}</text>
+<text x="${CX}" y="${dateY}" text-anchor="middle" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="${dateSize}" letter-spacing="3.5" fill="#555">${esc(val("dateText"))}</text>`;
 }
 
 // ── Event listeners ──────────────────────────────────────────────────────
@@ -475,7 +521,8 @@ ${borderEl}
 // as sliders are dragged or text is typed.
 ["songTitle","artist","names","dateText","lyrics",
  "fontSize","letterSpacing","lineSpacing","outerR","innerGap",
- "borderWidth","discR","armScale","armX","armY"].forEach(id => {
+ "borderWidth","discR","armScale","armX","armY",
+ "titleSize","titleBold","titleOffset","titleLine","namesSize","dateSize"].forEach(id => {
   document.getElementById(id).addEventListener("input", render);
 });
 
